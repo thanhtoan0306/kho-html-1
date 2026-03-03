@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>GDP World Power Race 1950–2026</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg: #050508;
+  --surface: #0c0c14;
+  --border: rgba(255,255,255,0.06);
+  --text: #e8e8f0;
+  --muted: rgba(255,255,255,0.28);
+  --gold: #f5c842;
+  --bar-h: 52px;
+  --bar-gap: 10px;
+  --transition-speed: 1.4s;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'IBM Plex Mono', monospace;
+  min-height: 100vh;
+  overflow-x: hidden;
+  position: relative;
+}
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none; z-index: 0;
+}
+body::after {
+  content: '';
+  position: fixed;
+  top: -20%; left: 50%; transform: translateX(-50%);
+  width: 900px; height: 500px;
+  background: radial-gradient(ellipse, rgba(245,200,66,0.06) 0%, transparent 70%);
+  pointer-events: none; z-index: 0;
+}
+header {
+  position: relative; z-index: 10;
+  padding: 36px 48px 24px;
+  display: flex; align-items: flex-end; justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+.title-block .eyebrow {
+  font-size: 10px; letter-spacing: 0.35em; text-transform: uppercase;
+  color: var(--gold); margin-bottom: 8px;
+}
+.title-block h1 {
+  font-family: 'Oswald', sans-serif;
+  font-size: clamp(28px, 4vw, 58px);
+  font-weight: 700; letter-spacing: 0.02em; line-height: 1;
+  color: #fff;
+}
+.title-block h1 span { color: var(--gold); }
+.header-right {
+  display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
+}
+.unit-badge {
+  font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase;
+  padding: 6px 14px; border: 1px solid var(--border);
+  color: var(--muted); border-radius: 2px;
+}
+.main {
+  position: relative; z-index: 5;
+  display: grid;
+  grid-template-columns: 1fr 220px;
+  gap: 0;
+  min-height: calc(100vh - 100px);
+}
+.chart-area {
+  padding: 32px 32px 32px 48px;
+  position: relative; overflow: hidden;
+}
+.year-watermark {
+  position: absolute;
+  bottom: 10px; right: 20px;
+  font-family: 'Oswald', sans-serif;
+  font-size: clamp(120px, 18vw, 240px);
+  font-weight: 700;
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(245,200,66,0.08);
+  line-height: 1; pointer-events: none;
+  transition: all 0.5s ease;
+  letter-spacing: -0.02em;
+  z-index: 0;
+}
+#bars-container {
+  position: relative;
+  min-height: 800px; /* đủ chỗ cho 12 thanh + gap */
+}
+.bar-row {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: var(--bar-h);
+  display: flex;
+  align-items: center;
+  transition: transform var(--transition-speed) cubic-bezier(0.22, 0.61, 0.36, 1),
+              opacity 0.6s ease;
+  will-change: transform;
+}
+.bar-rank {
+  width: 32px; flex-shrink: 0;
+  font-size: 11px; color: var(--muted);
+  text-align: right; margin-right: 10px;
+  font-family: 'Oswald', sans-serif;
+}
+.bar-flag {
+  width: 42px; height: 42px; flex-shrink: 0;
+  border-radius: 50%;
+  font-size: 26px;
+  display: flex; align-items: center; justify-content: center;
+  margin-right: 12px;
+  border: 2px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.04);
+  transition: all 0.5s;
+}
+.bar-flag.rank-1 {
+  border-color: var(--gold);
+  box-shadow: 0 0 20px rgba(245,200,66,0.35);
+}
+.bar-name-col {
+  width: 120px; flex-shrink: 0;
+  margin-right: 14px;
+}
+.bar-name {
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.04em; text-transform: uppercase;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  color: rgba(255,255,255,0.7);
+  transition: color 0.5s;
+}
+.bar-name.rank-1 { color: var(--gold); }
+.bar-track {
+  flex: 1; height: 38px;
+  background: rgba(255,255,255,0.035);
+  border-radius: 3px;
+  position: relative; overflow: visible;
+}
+.bar-fill {
+  height: 100%; border-radius: 3px;
+  transition: width var(--transition-speed) cubic-bezier(0.22, 0.61, 0.36, 1);
+  position: relative; min-width: 3px;
+  overflow: hidden;
+}
+.bar-fill::after {
+  content: '';
+  position: absolute; top: 0; right: 0; bottom: 0;
+  width: 60px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12));
+  border-radius: 0 3px 3px 0;
+}
+.bar-fill.rank-1::before {
+  content: '';
+  position: absolute; right: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: #fff;
+  box-shadow: 0 0 12px 4px rgba(255,255,255,0.6);
+  border-radius: 0 3px 3px 0;
+  animation: edgePulse 1.5s ease infinite;
+}
+@keyframes edgePulse {
+  0%,100% { opacity: 1; } 50% { opacity: 0.5; }
+}
+.bar-value {
+  position: absolute;
+  left: calc(100% + 10px); top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px; font-weight: 600;
+  color: rgba(255,255,255,0.55);
+  white-space: nowrap;
+  transition: color 0.5s;
+  font-variant-numeric: tabular-nums;
+}
+.bar-value.rank-1 { color: var(--gold); }
+.bar-delta {
+  position: absolute;
+  left: calc(100% + 10px); top: -16px;
+  font-size: 9px; letter-spacing: 0.1em;
+  opacity: 0; transition: opacity 0.4s;
+  pointer-events: none;
+}
+.bar-delta.up { color: #4ade80; }
+.bar-delta.dn { color: #f87171; }
+.bar-delta.show { opacity: 0.9; }
+.side-panel {
+  border-left: 1px solid var(--border);
+  padding: 32px 20px;
+  display: flex; flex-direction: column; gap: 28px;
+  position: relative; z-index: 5;
+}
+.year-display {
+  text-align: center;
+  padding: 20px 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: rgba(255,255,255,0.02);
+}
+.year-display .lbl {
+  font-size: 9px; letter-spacing: 0.3em; text-transform: uppercase;
+  color: var(--muted); display: block; margin-bottom: 6px;
+}
+.year-display .num {
+  font-family: 'Oswald', sans-serif;
+  font-size: 56px; font-weight: 700; line-height: 1;
+  color: var(--gold);
+  text-shadow: 0 0 40px rgba(245,200,66,0.4);
+  transition: all 0.3s;
+  display: block;
+}
+.controls { display: flex; flex-direction: column; gap: 8px; }
+.btn {
+  width: 100%; padding: 12px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase;
+  border-radius: 2px; cursor: pointer;
+  border: 1px solid var(--border);
+  background: transparent; color: var(--muted);
+  transition: all 0.2s;
+}
+.btn.primary { background: var(--gold); color: #000; border-color: var(--gold); font-weight: 600; }
+.btn.primary:hover { background: #ffe070; }
+.btn:hover:not(.primary) { border-color: rgba(255,255,255,0.3); color: #fff; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.speed-row {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 9px; color: var(--muted); letter-spacing: 0.1em;
+}
+.speed-row input[type=range] { flex:1; accent-color: var(--gold); }
+#speedVal { min-width: 40px; text-align: right; }
+.podium-title {
+  font-size: 9px; letter-spacing: 0.25em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 10px;
+}
+.podium-list { display: flex; flex-direction: column; gap: 8px; }
+.podium-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: rgba(255,255,255,0.02);
+  transition: all 0.8s ease;
+}
+.podium-item.p1 { border-color: rgba(245,200,66,0.3); background: rgba(245,200,66,0.04); }
+.podium-medal { font-size: 18px; flex-shrink: 0; width: 24px; text-align: center; }
+.podium-flag { font-size: 20px; }
+.podium-info { flex: 1; overflow: hidden; }
+.podium-name { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.podium-gdp { font-size: 12px; font-weight: 600; color: var(--gold); margin-top: 2px; font-variant-numeric: tabular-nums; }
+.progress-wrap { margin-top: auto; }
+.progress-lbl { font-size: 9px; letter-spacing: 0.2em; color: var(--muted); margin-bottom: 6px; display: flex; justify-content: space-between; }
+.progress-track { height: 3px; background: rgba(255,255,255,0.07); border-radius: 2px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--gold); width: 0%; transition: width 0.6s linear; border-radius: 2px; }
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes rankUp {
+  0% { background: rgba(74,222,128,0.18); }
+  100% { background: transparent; }
+}
+@keyframes rankDn {
+  0% { background: rgba(248,113,113,0.12); }
+  100% { background: transparent; }
+}
+.flash-up { animation: rankUp 1.6s ease forwards; border-radius: 4px; }
+.flash-dn { animation: rankDn 1.6s ease forwards; border-radius: 4px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="title-block">
+    <div class="eyebrow">Global Economy · 1950 → 2026</div>
+    <h1>GDP World <span>Power Race</span></h1>
+  </div>
+  <div class="header-right">
+    <div class="unit-badge">Nominal GDP · Million USD</div>
+  </div>
+</header>
+<div class="main">
+  <div class="chart-area">
+    <div class="year-watermark" id="yearWm">1950</div>
+    <div id="bars-container"></div>
+  </div>
+  <div class="side-panel">
+    <div class="year-display">
+      <span class="lbl">Year</span>
+      <span class="num" id="yearNum">1950</span>
+    </div>
+    <div class="controls">
+      <button class="btn primary" id="playBtn">▶ &nbsp; Play</button>
+      <button class="btn" id="resetBtn">↺ &nbsp; Reset</button>
+      <div class="speed-row">
+        <span>Speed</span>
+        <input type="range" id="speedSlider" min="60" max="1200" value="180" step="30"/>
+        <span id="speedVal">0.18s</span>
+      </div>
+    </div>
+    <div>
+      <div class="podium-title">🏆 Current Top 3</div>
+      <div class="podium-list" id="podiumList">
+        <div class="podium-item p1"><div class="podium-medal">🥇</div><div class="podium-flag" id="p1f"></div><div class="podium-info"><div class="podium-name" id="p1n">—</div><div class="podium-gdp" id="p1v">—</div></div></div>
+        <div class="podium-item"><div class="podium-medal">🥈</div><div class="podium-flag" id="p2f"></div><div class="podium-info"><div class="podium-name" id="p2n">—</div><div class="podium-gdp" id="p2v">—</div></div></div>
+        <div class="podium-item"><div class="podium-medal">🥉</div><div class="podium-flag" id="p3f"></div><div class="podium-info"><div class="podium-name" id="p3n">—</div><div class="podium-gdp" id="p3v">—</div></div></div>
+      </div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-lbl"><span>Progress</span><span id="progressPct">0%</span></div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── COUNTRY CONFIG ──────────────────────────────────────────────────────────
+const COUNTRIES = {
+  "United States": { flag:'🇺🇸', color:'#3b82f6' },
+  "China": { flag:'🇨🇳', color:'#ef4444' },
+  "Japan": { flag:'🇯🇵', color:'#f97316' },
+  "Germany": { flag:'🇩🇪', color:'#facc15' },
+  "India": { flag:'🇮🇳', color:'#f59e0b' },
+  "United Kingdom":{ flag:'🇬🇧', color:'#8b5cf6' },
+  "France": { flag:'🇫🇷', color:'#06b6d4' },
+  "Italy": { flag:'🇮🇹', color:'#10b981' },
+  "Canada": { flag:'🇨🇦', color:'#ec4899' },
+  "South Korea": { flag:'🇰🇷', color:'#84cc16' },
+  "Brazil": { flag:'🇧🇷', color:'#22d3ee' },
+  "Russia": { flag:'🇷🇺', color:'#a78bfa' },
+};
+
+// ─── MILESTONES (Billion USD) ───────────────────────────────────────────────
+const milestones = [
+  { year:1950, v:{ "United States":300,"China":30,"Japan":20,"Germany":35,"India":25,"United Kingdom":50,"France":40,"Italy":18,"Canada":15,"South Korea":1,"Brazil":10,"Russia":100 } },
+  { year:1960, v:{ "United States":520,"China":61,"Japan":44,"Germany":92,"India":37,"United Kingdom":72,"France":62,"Italy":40,"Canada":41,"South Korea":2,"Brazil":15,"Russia":142 } },
+  { year:1970, v:{ "United States":1076,"China":93,"Japan":213,"Germany":216,"India":63,"United Kingdom":130,"France":148,"Italy":113,"Canada":88,"South Korea":9,"Brazil":42,"Russia":433 } },
+  { year:1980, v:{ "United States":2862,"China":191,"Japan":1100,"Germany":920,"India":186,"United Kingdom":565,"France":701,"Italy":477,"Canada":274,"South Korea":65,"Brazil":235,"Russia":1212 } },
+  { year:1990, v:{ "United States":5963,"China":361,"Japan":3131,"Germany":1770,"India":321,"United Kingdom":1093,"France":1269,"Italy":1182,"Canada":596,"South Korea":283,"Brazil":455,"Russia":1000 } },
+  { year:2000, v:{ "United States":10251,"China":1211,"Japan":4887,"Germany":1948,"India":476,"United Kingdom":1573,"France":1368,"Italy":1146,"Canada":742,"South Korea":562,"Brazil":655,"Russia":260 } },
+  { year:2010, v:{ "United States":15049,"China":6087,"Japan":5700,"Germany":3400,"India":1680,"United Kingdom":2480,"France":2680,"Italy":2130,"Canada":1610,"South Korea":1140,"Brazil":2200,"Russia":1520 } },
+  { year:2020, v:{ "United States":21060,"China":14687,"Japan":5040,"Germany":3860,"India":2670,"United Kingdom":2760,"France":2630,"Italy":1890,"Canada":1647,"South Korea":1630,"Brazil":1450,"Russia":1480 } },
+  { year:2025, v:{ "United States":30616,"China":19398,"Germany":5013,"Japan":4279,"India":4125,"United Kingdom":3958,"France":3361,"Italy":2543,"Canada":2200,"South Korea":1800,"Brazil":2200,"Russia":2000 } },
+  { year:2026, v:{ "United States":31821,"China":20651,"Germany":5328,"India":4506,"Japan":4464,"United Kingdom":4226,"France":3500,"Italy":2600,"Canada":2300,"South Korea":1900,"Brazil":2300,"Russia":2100 } },
+];
+
+// Scale sang Million USD
+milestones.forEach(m => {
+  Object.keys(m.v).forEach(c => {
+    m.v[c] = Math.round((m.v[c] || 0) * 1000);
+  });
+});
+
+// ─── BUILD YEARLY DATA ───────────────────────────────────────────────────────
+const allYears = [];
+for (let y = 1950; y <= 2026; y++) {
+  const vals = {};
+  for (let i = 0; i < milestones.length - 1; i++) {
+    const m0 = milestones[i], m1 = milestones[i+1];
+    if (y >= m0.year && y <= m1.year) {
+      const t = (y - m0.year) / (m1.year - m0.year);
+      Object.keys(COUNTRIES).forEach(c => {
+        const a = m0.v[c] ?? 0, b = m1.v[c] ?? a;
+        vals[c] = Math.round(a + (b - a) * t);
+      });
+      break;
+    }
+  }
+  if (!Object.keys(vals).length) Object.assign(vals, milestones[milestones.length-1].v);
+  allYears.push({ year: y, vals });
+}
+
+// ─── BUILD DOM ───────────────────────────────────────────────────────────────
+const container = document.getElementById('bars-container');
+const names = Object.keys(COUNTRIES);
+const barEls = {};
+const prevRank = {};
+const prevVal = {};
+names.forEach(name => {
+  const c = COUNTRIES[name];
+  const row = document.createElement('div');
+  row.className = 'bar-row';
+  row.innerHTML = `
+    <div class="bar-rank" id="rk-${name.replace(/\s/g,'_')}">—</div>
+    <div class="bar-flag" id="fl-${name.replace(/\s/g,'_')}">${c.flag}</div>
+    <div class="bar-name-col"><div class="bar-name" id="nm-${name.replace(/\s/g,'_')}">${name.replace('United ','U.')}</div></div>
+    <div class="bar-track">
+      <div class="bar-fill" id="bf-${name.replace(/\s/g,'_')}" style="background:linear-gradient(90deg,${c.color}cc,${c.color});width:0%"></div>
+      <div class="bar-value" id="bv-${name.replace(/\s/g,'_')}">0</div>
+      <div class="bar-delta" id="bd-${name.replace(/\s/g,'_')}"></div>
+    </div>`;
+  container.appendChild(row);
+  const k = name.replace(/\s/g,'_');
+  barEls[name] = {
+    row,
+    fill: document.getElementById(`bf-${k}`),
+    value: document.getElementById(`bv-${k}`),
+    rank: document.getElementById(`rk-${k}`),
+    flag: document.getElementById(`fl-${k}`),
+    nameEl: document.getElementById(`nm-${k}`),
+    delta: document.getElementById(`bd-${k}`),
+  };
+  prevRank[name] = 0;
+  prevVal[name] = 0;
+});
+
+// ─── FORMAT ──────────────────────────────────────────────────────────────────
+function fmtGDP(v) {
+  return `$${v.toLocaleString()}M`;
+}
+
+// ─── COUNTER ANIMATION ───────────────────────────────────────────────────────
+const activeCounters = {};
+function animateValue(el, from, to, duration) {
+  if (activeCounters[el.id]) cancelAnimationFrame(activeCounters[el.id]);
+  const start = performance.now();
+  function step(ts) {
+    const p = Math.min((ts - start) / duration, 1);
+    const ease = 1 - Math.pow(1 - p, 3);
+    const cur = Math.round(from + (to - from) * ease);
+    el.textContent = fmtGDP(cur);
+    if (p < 1) activeCounters[el.id] = requestAnimationFrame(step);
+    else { el.textContent = fmtGDP(to); delete activeCounters[el.id]; }
+  }
+  activeCounters[el.id] = requestAnimationFrame(step);
+}
+
+// ─── RENDER FRAME ────────────────────────────────────────────────────────────
+let frameIdx = 0;
+function renderFrame(idx) {
+  const frame = allYears[idx];
+  const { year, vals } = frame;
+  const sorted = names.slice().sort((a,b) => vals[b] - vals[a]);
+  const maxVal = vals[sorted[0]] || 1;
+
+  document.getElementById('yearWm').textContent = year;
+  document.getElementById('yearNum').textContent = year;
+
+  const pct = Math.round((idx / (allYears.length - 1)) * 100);
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressPct').textContent = pct + '%';
+
+  const rowHeight = 52; // var(--bar-h)
+  const gap = 10;       // var(--bar-gap)
+  const step = rowHeight + gap;
+
+  sorted.forEach((name, rank) => {
+    const el = barEls[name];
+    if (!el) return;
+    const val = vals[name] ?? 0;
+    const pctW = (val / maxVal) * 86;
+    const isFirst = rank === 0;
+    const oldRank = prevRank[name];
+
+    // Vị trí mới bằng transform
+    const newTop = rank * step;
+    el.row.style.transform = `translateY(${newTop}px)`;
+
+    el.rank.textContent = `#${rank + 1}`;
+
+    if (oldRank !== undefined && oldRank !== rank && idx > 0) {
+      el.row.classList.remove('flash-up','flash-dn');
+      void el.row.offsetWidth;
+      if (rank < oldRank) el.row.classList.add('flash-up');
+      else el.row.classList.add('flash-dn');
+
+      const delta = oldRank - rank;
+      if (Math.abs(delta) > 0) {
+        el.delta.textContent = delta > 0 ? `▲${delta}` : `▼${Math.abs(delta)}`;
+        el.delta.className = `bar-delta ${delta > 0 ? 'up' : 'dn'} show`;
+        clearTimeout(el._dt);
+        el._dt = setTimeout(() => el.delta.classList.remove('show'), 2200);
+      }
+    }
+
+    el.fill.style.width = pctW + '%';
+    el.fill.classList.toggle('rank-1', isFirst);
+    el.value.classList.toggle('rank-1', isFirst);
+    el.nameEl.classList.toggle('rank-1', isFirst);
+    el.flag.classList.toggle('rank-1', isFirst);
+
+    animateValue(el.value, prevVal[name] || 0, val, 700);
+
+    prevRank[name] = rank;
+    prevVal[name] = val;
+  });
+
+  const medals = ['p1','p2','p3'];
+  sorted.slice(0,3).forEach((name,i) => {
+    const p = medals[i];
+    document.getElementById(`${p}f`).textContent = COUNTRIES[name].flag;
+    document.getElementById(`${p}n`).textContent = name;
+    document.getElementById(`${p}v`).textContent = fmtGDP(vals[name]);
+  });
+}
+
+// ─── PLAYBACK ────────────────────────────────────────────────────────────────
+let playing = false;
+let timer = null;
+let speed = 180;
+
+function play() {
+  if (frameIdx >= allYears.length - 1) frameIdx = 0;
+  playing = true;
+  document.getElementById('playBtn').textContent = '⏸ Pause';
+  timer = setInterval(() => {
+    if (frameIdx >= allYears.length - 1) { stop(); return; }
+    frameIdx++;
+    renderFrame(frameIdx);
+  }, speed);
+}
+
+function stop() {
+  playing = false;
+  clearInterval(timer);
+  document.getElementById('playBtn').textContent = '▶ Play';
+}
+
+document.getElementById('playBtn').addEventListener('click', () => {
+  playing ? stop() : play();
+});
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+  stop();
+  frameIdx = 0;
+  Object.keys(prevVal).forEach(k => { prevVal[k] = 0; });
+  Object.keys(prevRank).forEach(k => { prevRank[k] = 0; });
+  renderFrame(0);
+  document.getElementById('playBtn').textContent = '▶ Play';
+});
+
+document.getElementById('speedSlider').addEventListener('input', function() {
+  speed = parseInt(this.value);
+  document.getElementById('speedVal').textContent = (speed/1000).toFixed(2) + 's';
+  if (playing) {
+    clearInterval(timer);
+    timer = setInterval(() => {
+      if (frameIdx >= allYears.length - 1) { stop(); return; }
+      frameIdx++;
+      renderFrame(frameIdx);
+    }, speed);
+  }
+});
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+renderFrame(0);
+</script>
+</body>
+</html>
