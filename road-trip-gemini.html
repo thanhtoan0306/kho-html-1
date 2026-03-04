@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Road Trip Việt Nam - Clear Vision</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@500;700&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:#fff;font-family:'Barlow Condensed',sans-serif;overflow:hidden;height:100vh;width:100vw}
+#map{width:100%;height:100%}
+
+/* Loại bỏ filter mờ, giữ bản đồ sắc nét */
+.leaflet-tile-container{ filter: none !important; }
+.leaflet-control-zoom, .leaflet-control-attribution{display:none}
+
+/* HEADER */
+#hdr{
+  position:fixed;top:0;left:0;right:0;z-index:1000;
+  padding:25px; background:linear-gradient(to bottom, rgba(0,0,0,0.7), transparent);
+  pointer-events:none;text-align:center;
+}
+#hdr h1{
+  font-family:'Bebas Neue',sans-serif; font-size:2.5rem;
+  letter-spacing:0.15em; color:#fff; text-shadow:2px 2px 10px rgba(0,0,0,0.8), 0 0 20px #f0a500;
+}
+
+/* SIDE PANEL - CẢI THIỆN ĐỘ ĐỌC */
+#checkin-panel{
+  position:fixed;left:15px;top:50%;transform:translateY(-50%);
+  z-index:1000; display:flex;flex-direction:column; gap:4px;
+  max-height:70vh;overflow-y:auto;scrollbar-width:none;
+  padding-left: 10px;
+}
+.ci-item{
+  padding:6px 15px; border-left:4px solid rgba(0,0,0,0.2);
+  opacity:0.6; transition:0.3s; color:#000; font-size:1.1rem; 
+  font-weight:700; text-transform:uppercase;
+  background: rgba(255,255,255,0.7); /* Nền trắng mờ để dễ đọc chữ */
+  backdrop-filter: blur(4px);
+  border-radius: 0 5px 5px 0;
+  text-shadow: 1px 1px 0px white;
+}
+.ci-item.active{
+  opacity:1; border-left-color:#d35400; 
+  background: #f0a500; color: #fff;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+  transform: scale(1.05);
+}
+
+/* STATS */
+#stats{
+  position:fixed;bottom:100px;left:50%;transform:translateX(-50%);
+  z-index:1000; display:flex;gap:40px;
+  background:rgba(0,0,0,0.85); border:2px solid #f0a500;
+  border-radius:15px;padding:15px 40px;backdrop-filter:blur(10px);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+.stat .sv{font-family:'Bebas Neue',sans-serif;font-size:1.8rem;color:#f0a500;line-height:1}
+.stat .sk{font-size:0.8rem;color:#ccc;text-transform:uppercase;font-weight:700}
+
+/* UI ELEMENTS */
+.car-body{font-size:2.5rem; filter: drop-shadow(0 0 5px rgba(0,0,0,0.5));}
+#prog-bar{position:fixed;bottom:0;left:0;right:0;height:8px;background:rgba(0,0,0,0.1);z-index:1001}
+#prog-fill{height:100%;background:linear-gradient(90deg, #f0a500, #ff5e00);width:0%;transition: width 0.1s linear;}
+
+#nav{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);display:flex;gap:15px;z-index:1001}
+.nb{
+  background:#222; border:none; color:#f0a500; font-family:'Bebas Neue',sans-serif;
+  padding:12px 35px; border-radius:8px; cursor:pointer; font-size:1.2rem;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2); transition: 0.2s;
+}
+.nb:hover{ background: #000; transform: translateY(-2px); }
+.nb:disabled{background:#ccc; color:#888; cursor:not-allowed}
+#btn-play { background: #f0a500; color: #000; }
+</style>
+</head>
+<body>
+
+<div id="hdr"><h1 id="main-title">🚦 HÀNH TRÌNH XUYÊN VIỆT</h1></div>
+<div id="map"></div>
+<div id="checkin-panel"></div>
+
+<div id="stats">
+  <div class="stat"><div class="sv" id="sv-km">0</div><div class="sk">KILOMETERS</div></div>
+  <div class="stat"><div class="sv" id="sv-pct">0%</div><div class="sk">TIẾN ĐỘ</div></div>
+</div>
+
+<div id="prog-bar"><div id="prog-fill"></div></div>
+<div id="nav">
+  <button class="nb" id="btn-play">▶ BẮT ĐẦU</button>
+  <button class="nb" id="btn-reset">LÀM MỚI</button>
+</div>
+
+<script>
+const STOPS = [
+  [21.0285, 105.8542, 'Hà Nội', 0],
+  [20.4108, 106.1646, 'Ninh Bình', 95],
+  [20.0505, 105.7746, 'Thanh Hóa', 155],
+  [18.6734, 105.6813, 'Nghệ An', 295],
+  [17.4698, 106.5884, 'Quảng Bình', 495],
+  [16.4674, 107.5905, 'Huế', 660],
+  [16.0544, 108.2022, 'Đà Nẵng', 765],
+  [15.1214, 108.8092, 'Quảng Ngãi', 900],
+  [13.7767, 109.2243, 'Quy Nhơn', 1080],
+  [12.2388, 109.1967, 'Nha Trang', 1295],
+  [10.9804, 106.6519, 'Biên Hòa', 1680],
+  [10.7769, 106.7009, 'TP. Hồ Chí Minh', 1710]
+];
+
+// 1. Khởi tạo Map với bản đồ sắc nét
+const map = L.map('map', { center: [16.5, 106.5], zoom: 6, zoomSnap: 0.1 });
+// Sử dụng Voyager của CartoDB: Rõ ràng, tương phản tốt, chữ dễ đọc
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png').addTo(map);
+
+// 2. Lộ trình mờ
+const ghostPath = L.polyline(STOPS.map(s => [s[0], s[1]]), {
+    color: '#34495e', weight: 3, opacity: 0.2, dashArray: '10, 10'
+}).addTo(map);
+
+// 3. Lộ trình đang đi (Đậm và sắc nét hơn)
+const activePath = L.polyline([[STOPS[0][0], STOPS[0][1]]], {
+    color: '#e67e22', weight: 6, opacity: 0.9
+}).addTo(map);
+
+// 4. Marker xe
+const carIcon = L.divIcon({
+    className: 'car-icon',
+    html: `<div class="car-body" id="car-emoji">🚗</div>`,
+    iconSize: [50, 50], iconAnchor: [25, 25]
+});
+const carMarker = L.marker([STOPS[0][0], STOPS[0][1]], { icon: carIcon }).addTo(map);
+
+// 5. Panel check-in
+const panel = document.getElementById('checkin-panel');
+STOPS.forEach((s, i) => {
+    const div = document.createElement('div');
+    div.className = 'ci-item'; div.id = `stop-${i}`;
+    div.innerHTML = s[2]; panel.appendChild(div);
+});
+
+let animationId = null;
+let startTime = null;
+let isRunning = false;
+const speed = 2000; // Tăng tốc một chút để mượt hơn
+
+function animate(timestamp) {
+    if (!startTime) startTime = timestamp;
+    const elapsed = timestamp - startTime;
+    const totalDuration = (STOPS.length - 1) * speed;
+    let progress = elapsed / totalDuration;
+
+    if (progress >= 1) {
+        progress = 1;
+        updatePosition(1);
+        finishTrip();
+        return;
+    }
+
+    updatePosition(progress);
+    if (isRunning) animationId = requestAnimationFrame(animate);
+}
+
+function updatePosition(progress) {
+    const totalStops = STOPS.length - 1;
+    const currentPos = progress * totalStops;
+    const index = Math.floor(currentPos);
+    const segmentPct = currentPos - index;
+
+    if (index >= totalStops) return;
+
+    const p1 = STOPS[index];
+    const p2 = STOPS[index + 1];
+
+    const lat = p1[0] + (p2[0] - p1[0]) * segmentPct;
+    const lng = p1[1] + (p2[1] - p1[1]) * segmentPct;
+    const currentLatLng = [lat, lng];
+
+    carMarker.setLatLng(currentLatLng);
+    
+    const angle = Math.atan2(p2[0] - p1[0], p2[1] - p1[1]) * 180 / Math.PI;
+    document.getElementById('car-emoji').style.transform = `rotate(${90 - angle}deg)`;
+
+    const pathCoords = STOPS.slice(0, index + 1).map(s => [s[0], s[1]]);
+    pathCoords.push(currentLatLng);
+    activePath.setLatLngs(pathCoords);
+
+    map.panTo(currentLatLng, { animate: false });
+
+    const currentKm = p1[3] + (p2[3] - p1[3]) * segmentPct;
+    document.getElementById('sv-km').innerText = Math.round(currentKm).toLocaleString();
+    document.getElementById('sv-pct').innerText = Math.round(progress * 100) + '%';
+    document.getElementById('prog-fill').style.width = (progress * 100) + '%';
+    document.getElementById('main-title').innerText = `📍 ĐANG QUA: ${p2[2].toUpperCase()}`;
+    
+    document.querySelectorAll('.ci-item').forEach(el => el.classList.remove('active'));
+    document.getElementById(`stop-${index + 1}`).classList.add('active');
+}
+
+function finishTrip() {
+    isRunning = false;
+    document.getElementById('btn-play').innerText = "🏁 HOÀN THÀNH";
+    document.getElementById('btn-play').disabled = true;
+    document.getElementById('main-title').innerText = "🏁 CHÀO MỪNG ĐẾN TP. HỒ CHÍ MINH";
+}
+
+document.getElementById('btn-play').onclick = () => {
+    if (!isRunning) {
+        isRunning = true;
+        document.getElementById('btn-play').innerText = "⏸ ĐANG CHẠY...";
+        animationId = requestAnimationFrame(animate);
+    }
+};
+
+document.getElementById('btn-reset').onclick = () => {
+    location.reload(); // Cách reset sạch nhất cho Map
+};
+</script>
+</body>
+</html>
