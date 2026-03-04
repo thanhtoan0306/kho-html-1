@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kịch bản Xung đột Iran - Israel</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; background: #000; overflow: hidden; }
+        #map { width: 100%; height: 100vh; }
+
+        /* Bảng tin sự kiện */
+        #news-feed {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.8);
+            color: #ff3366;
+            padding: 15px 30px;
+            border: 2px solid #ff3366;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 1.2rem;
+            font-weight: bold;
+            text-align: center;
+            border-radius: 5px;
+            box-shadow: 0 0 20px rgba(255, 51, 102, 0.5);
+            display: none;
+        }
+
+        /* Hiệu ứng nổ */
+        .explosion-pulse {
+            width: 20px;
+            height: 20px;
+            background: rgba(255, 255, 0, 0.8);
+            border-radius: 50%;
+            animation: explode 1s infinite;
+        }
+
+        @keyframes explode {
+            0% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0px rgba(255, 255, 0, 0.7); }
+            100% { transform: scale(5); opacity: 0; box-shadow: 0 0 0 30px rgba(255, 0, 0, 0); }
+        }
+
+        .country-label {
+            background: none !important; border: none !important;
+            color: #ff69b4; font-weight: 900; font-size: 14px;
+            text-shadow: 1px 1px 2px #000;
+        }
+    </style>
+</head>
+<body>
+
+<div id="news-feed">ĐANG TẢI DỮ LIỆU...</div>
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+    // Khởi tạo bản đồ ban đầu (Zoom xa)
+    const map = L.map('map', {
+        zoomControl: false,
+        attributionControl: false
+    }).setView([32.5, 44.0], 4);
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
+
+    const tehran = [35.6892, 51.3890];
+    const jerusalem = [31.7683, 35.2137];
+    const newsFeed = document.getElementById('news-feed');
+
+    // Các lớp để xóa sau khi xong
+    let currentMarkers = [];
+
+    function showNews(text) {
+        newsFeed.style.display = 'block';
+        newsFeed.innerText = text;
+    }
+
+    function addExplosion(coords) {
+        const icon = L.divIcon({
+            className: 'explosion-container',
+            html: '<div class="explosion-pulse"></div>',
+            iconSize: [20, 20]
+        });
+        const marker = L.marker(coords, {icon: icon}).addTo(map);
+        currentMarkers.push(marker);
+    }
+
+    // --- KỊCH BẢN ANIMATION ---
+
+    // Bước 1: 28/02 - Iran bị tấn công
+    setTimeout(() => {
+        showNews("NGÀY 28/02: IRAN BỊ TẤN CÔNG OANH TẠC");
+        map.flyTo(tehran, 7, { duration: 3 }); // Zoom in vào Iran
+        
+        setTimeout(() => {
+            addExplosion(tehran);
+            addExplosion([32.65, 51.66]); // Isfahan
+        }, 3000);
+    }, 1000);
+
+    // Bước 2: Zoom Out để thấy toàn cảnh
+    setTimeout(() => {
+        showNews("CĂNG THẲNG LEO THANG VÙNG TRUNG ĐÔNG");
+        map.flyTo([32.5, 44.0], 4, { duration: 4 }); // Zoom out
+    }, 7000);
+
+    // Bước 3: 01/03 - Israel bị oanh tạc
+    setTimeout(() => {
+        showNews("NGÀY 01/03: ISRAEL BỊ ĐÁP TRẢ OANH TẠC");
+        map.flyTo(jerusalem, 8, { duration: 3 }); // Zoom in vào Israel
+        
+        setTimeout(() => {
+            addExplosion(jerusalem);
+            addExplosion([32.81, 34.99]); // Haifa
+        }, 3000);
+    }, 12000);
+
+    // Bước 4: Kết thúc - Nhìn lại toàn bộ
+    setTimeout(() => {
+        showNews("BÁO ĐỘNG ĐỎ TRÊN TOÀN KHU VỰC");
+        map.flyTo([32.5, 44.0], 5, { duration: 5 });
+    }, 18000);
+
+    // Vẽ vùng hồng cho 2 nước
+    const iranZone = [[39,44], [38,48], [37,55], [37,62], [25,61], [25,57], [30,48], [34,45]];
+    const israelZone = [[33.3,35.1], [31,35], [29.5,34.9], [31.3,34.3], [32.8,34.8]];
+
+    L.polygon(iranZone, {color: '#ff69b4', fillColor: '#ffb6c1', fillOpacity: 0.2}).addTo(map)
+        .bindTooltip("IRAN", {permanent: true, direction: 'center', className: 'country-label'});
+    
+    L.polygon(israelZone, {color: '#ff69b4', fillColor: '#ffb6c1', fillOpacity: 0.4}).addTo(map)
+        .bindTooltip("ISRAEL", {permanent: true, direction: 'center', className: 'country-label'});
+
+</script>
+</body>
+</html>
