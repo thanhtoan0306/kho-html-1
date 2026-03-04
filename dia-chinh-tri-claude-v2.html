@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Iran × Israel — Conflict Timeline</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@300;400;600;700&family=Barlow:wght@300;400;600&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #05050a;
+  font-family: 'Barlow', sans-serif;
+  overflow: hidden;
+  height: 100vh; width: 100vw;
+}
+
+#map { width: 100%; height: 100%; background: #0a0a12; }
+
+.leaflet-tile {
+  filter: brightness(0.45) saturate(0.3) hue-rotate(185deg) invert(1) sepia(0.4);
+}
+.leaflet-control-zoom a {
+  background: rgba(5,5,10,0.9) !important;
+  color: #ff4d8f !important;
+  border-color: rgba(255,77,143,0.3) !important;
+}
+.leaflet-control-zoom a:hover { background: rgba(255,77,143,0.12) !important; }
+.leaflet-control-attribution { display: none; }
+
+/* ── HEADER ── */
+#header {
+  position: fixed; top: 0; left: 0; right: 0;
+  z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  padding: 14px 20px 10px;
+  background: linear-gradient(to bottom, rgba(5,5,10,0.95) 70%, transparent);
+  pointer-events: none;
+  flex-direction: column;
+}
+#header h1 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(1.6rem, 5vw, 2.8rem);
+  letter-spacing: 0.3em;
+  color: #fff;
+  text-shadow: 0 0 30px rgba(255,77,143,0.9), 0 0 80px rgba(255,77,143,0.35);
+}
+#header .sub {
+  font-size: 0.68rem;
+  color: rgba(255,130,170,0.55);
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+/* ── TIMELINE SIDEBAR ── */
+#timeline {
+  position: fixed;
+  right: 16px; top: 50%;
+  transform: translateY(-50%);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-height: 80vh;
+  overflow: hidden;
+}
+
+.t-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  padding: 6px 10px 6px 0;
+  border-right: 2px solid rgba(255,77,143,0.15);
+  transition: all 0.3s ease;
+  opacity: 0.45;
+  max-width: 220px;
+}
+.t-item:hover, .t-item.active {
+  opacity: 1;
+  border-right-color: #ff4d8f;
+}
+.t-item.active .t-dot { background: #ff4d8f; box-shadow: 0 0 12px #ff4d8f; }
+.t-dot {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: rgba(255,77,143,0.5);
+  flex-shrink: 0;
+  margin-top: 4px;
+  transition: all 0.3s;
+}
+.t-year {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 0.75rem;
+  color: #ff4d8f;
+  letter-spacing: 0.1em;
+  line-height: 1;
+  white-space: nowrap;
+}
+.t-text {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 0.72rem;
+  color: rgba(255,220,230,0.85);
+  line-height: 1.35;
+  font-weight: 300;
+}
+
+/* ── EVENT POPUP on map ── */
+.event-popup {
+  position: fixed;
+  z-index: 900;
+  pointer-events: none;
+  transform: translate(-50%, -110%);
+  background: rgba(5,5,15,0.92);
+  border: 1px solid rgba(255,77,143,0.5);
+  border-radius: 6px;
+  padding: 8px 14px;
+  backdrop-filter: blur(12px);
+  max-width: 200px;
+  text-align: center;
+  box-shadow: 0 0 20px rgba(255,77,143,0.25);
+  animation: popIn 0.3s ease;
+}
+@keyframes popIn {
+  from { opacity:0; transform:translate(-50%,-90%) scale(0.85); }
+  to   { opacity:1; transform:translate(-50%,-110%) scale(1); }
+}
+.event-popup .ep-year {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 0.8rem;
+  color: #ff4d8f;
+  letter-spacing: 0.15em;
+}
+.event-popup .ep-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #fff;
+  margin: 2px 0;
+  letter-spacing: 0.05em;
+}
+.event-popup .ep-desc {
+  font-size: 0.68rem;
+  color: rgba(255,180,200,0.75);
+  line-height: 1.4;
+}
+
+/* ── MAP LABELS ── */
+.country-label { background: transparent !important; border: none !important; box-shadow: none !important; }
+.country-label div {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.05rem;
+  letter-spacing: 0.2em;
+  color: #fff;
+  text-shadow: 0 0 18px rgba(255,77,143,1), 0 0 35px rgba(255,77,143,0.5);
+  white-space: nowrap;
+}
+
+.proxy-label { background: transparent !important; border: none !important; box-shadow: none !important; }
+.proxy-label div {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  color: rgba(255,150,180,0.75);
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-shadow: 0 0 10px rgba(255,77,143,0.6);
+}
+
+.event-dot-icon { background: transparent !important; border: none !important; box-shadow: none !important; }
+
+/* ── PULSE DOT ── */
+.pulse-dot {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: rgba(255,77,143,0.95);
+  box-shadow: 0 0 0 0 rgba(255,77,143,0.7);
+  animation: pulse-ring 1.6s ease-out infinite;
+}
+.pulse-dot.blue {
+  background: rgba(77,180,255,0.95);
+  box-shadow: 0 0 0 0 rgba(77,180,255,0.7);
+  animation: pulse-ring-blue 1.6s ease-out infinite;
+}
+@keyframes pulse-ring {
+  0%  { box-shadow: 0 0 0 0 rgba(255,77,143,0.7); }
+  70% { box-shadow: 0 0 0 14px rgba(255,77,143,0); }
+  100%{ box-shadow: 0 0 0 0 rgba(255,77,143,0); }
+}
+@keyframes pulse-ring-blue {
+  0%  { box-shadow: 0 0 0 0 rgba(77,180,255,0.7); }
+  70% { box-shadow: 0 0 0 14px rgba(77,180,255,0); }
+  100%{ box-shadow: 0 0 0 0 rgba(77,180,255,0); }
+}
+
+/* ── LEGEND ── */
+#legend {
+  position: fixed; bottom: 20px; left: 16px;
+  z-index: 1000;
+  background: rgba(5,5,10,0.85);
+  border: 1px solid rgba(255,77,143,0.25);
+  border-radius: 8px;
+  padding: 10px 16px;
+  backdrop-filter: blur(10px);
+}
+.leg-row { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+.leg-line {
+  width: 32px; height: 2px;
+  background: repeating-linear-gradient(90deg, #ff4d8f 0, #ff4d8f 6px, transparent 6px, transparent 12px);
+}
+.leg-line.blue {
+  background: repeating-linear-gradient(90deg, #4db4ff 0, #4db4ff 6px, transparent 6px, transparent 12px);
+}
+.leg-line.orange {
+  background: repeating-linear-gradient(90deg, #ffaa44 0, #ffaa44 6px, transparent 6px, transparent 12px);
+}
+.leg-txt { font-size: 0.65rem; color: rgba(255,200,215,0.7); letter-spacing: 0.08em; }
+
+/* progress bar */
+#progress-bar {
+  position: fixed; bottom: 0; left: 0; right: 0; height: 3px;
+  background: rgba(255,77,143,0.1); z-index: 1001;
+}
+#progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff4d8f, #ff9ac0);
+  transition: width 0.6s ease;
+  box-shadow: 0 0 8px rgba(255,77,143,0.6);
+}
+
+/* step counter */
+#step-counter {
+  position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+  z-index: 1001;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  color: rgba(255,77,143,0.5);
+}
+
+/* nav buttons */
+#nav-btns {
+  position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 12px; z-index: 1001;
+}
+.nav-btn {
+  background: rgba(5,5,10,0.9);
+  border: 1px solid rgba(255,77,143,0.4);
+  color: #ff4d8f;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 0.9rem;
+  letter-spacing: 0.15em;
+  padding: 8px 22px;
+  border-radius: 30px;
+  cursor: pointer;
+  transition: all 0.25s;
+  backdrop-filter: blur(8px);
+}
+.nav-btn:hover {
+  background: rgba(255,77,143,0.15);
+  border-color: #ff4d8f;
+  box-shadow: 0 0 16px rgba(255,77,143,0.3);
+}
+.nav-btn:disabled { opacity: 0.25; cursor: not-allowed; }
+
+/* auto-play indicator */
+#autoplay-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #ff4d8f;
+  animation: blink 1.2s ease-in-out infinite;
+  display: inline-block; margin-right: 5px; vertical-align: middle;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <h1>⚔️ IRAN × ISRAEL — CONFLICT TIMELINE</h1>
+  <div class="sub"><span id="autoplay-dot"></span>Cuộc đối đầu trong bóng tối · 1979 – 2024</div>
+</div>
+
+<div id="map"></div>
+
+<div id="timeline"></div>
+
+<div id="legend">
+  <div class="leg-row"><div class="leg-line"></div><div class="leg-txt">Tấn công / Missile Iran → Israel</div></div>
+  <div class="leg-row"><div class="leg-line blue"></div><div class="leg-txt">Phản công Israel → Iran / Syria</div></div>
+  <div class="leg-row"><div class="leg-line orange"></div><div class="leg-txt">Proxy / Hezbollah</div></div>
+</div>
+
+<div id="progress-bar"><div id="progress-fill" style="width:0%"></div></div>
+<div id="nav-btns">
+  <button class="nav-btn" id="btn-prev">◀ PREV</button>
+  <button class="nav-btn" id="btn-next">NEXT ▶</button>
+</div>
+<div id="step-counter"></div>
+
+<script>
+// ═══════════════════════════════════════════
+//  CONFLICT EVENTS DATA
+// ═══════════════════════════════════════════
+const EVENTS = [
+  {
+    year: '1979',
+    title: 'Cách mạng Hồi giáo Iran',
+    short: 'Cách mạng Iran',
+    desc: 'Iran tuyên bố Israel là "kẻ thù của Hồi giáo". Quan hệ ngoại giao cắt đứt hoàn toàn.',
+    from: [35.69, 51.39],  // Tehran
+    to:   [31.77, 35.21],  // Jerusalem
+    color: '#ff4d8f',
+    type: 'threat',
+    via: null,
+    eventDot: [35.69, 51.39],
+  },
+  {
+    year: '2006',
+    title: 'Chiến tranh Liban — Hezbollah',
+    short: 'Hezbollah vs Israel',
+    desc: 'Iran tài trợ Hezbollah tại Liban. 34 ngày giao tranh dữ dội. Hơn 1,000 dân thường thiệt mạng.',
+    from: [33.85, 35.85],  // Beirut (proxy)
+    to:   [32.08, 34.78],  // Tel Aviv
+    color: '#ffaa44',
+    type: 'proxy',
+    via: null,
+    eventDot: [33.85, 35.85],
+    proxyLabel: { latlng:[33.85, 35.85], text:'HEZBOLLAH / LIBAN' },
+  },
+  {
+    year: '2010',
+    title: 'Stuxnet — Chiến tranh mạng',
+    short: 'Virus Stuxnet',
+    desc: 'Mỹ & Israel tung virus Stuxnet phá huỷ 1,000 máy ly tâm uranium tại Natanz, Iran.',
+    from: [31.77, 35.21],  // Jerusalem
+    to:   [33.72, 51.65],  // Natanz
+    color: '#4db4ff',
+    type: 'cyber',
+    via: null,
+    eventDot: [33.72, 51.65],
+  },
+  {
+    year: '2018',
+    title: 'Israel không kích Syria',
+    short: 'F-16 vs Căn cứ Iran',
+    desc: 'Israel tấn công hơn 200 mục tiêu Iran tại Syria. Lần đầu Israel thừa nhận không kích trực tiếp lực lượng Iran.',
+    from: [32.08, 34.78],  // Tel Aviv
+    to:   [33.51, 36.29],  // Damascus
+    color: '#4db4ff',
+    type: 'airstrike',
+    via: null,
+    eventDot: [33.51, 36.29],
+    proxyLabel: { latlng:[33.51, 36.29], text:'SYRIA — CĂN CỨ IRGC' },
+  },
+  {
+    year: '2020',
+    title: 'Ám sát tướng Qasem Soleimani',
+    short: 'Mỹ giết Soleimani',
+    desc: 'Mỹ ám sát tướng Soleimani — kiến trúc sư mạng lưới proxy Iran. Iran thề trả thù Israel & Mỹ.',
+    from: [33.33, 44.36],  // Baghdad
+    to:   [35.69, 51.39],  // Tehran
+    color: '#ff4d8f',
+    type: 'assassination',
+    via: null,
+    eventDot: [33.33, 44.36],
+    proxyLabel: { latlng:[33.33, 44.36], text:'BAGHDAD — SÂN BAY' },
+  },
+  {
+    year: '2021',
+    title: 'Mossad ám sát nhà khoa học hạt nhân',
+    short: 'Fakhrizadeh bị giết',
+    desc: 'Mohsen Fakhrizadeh — cha đẻ chương trình hạt nhân Iran — bị Mossad ám sát bằng súng máy điều khiển từ xa.',
+    from: [31.77, 35.21],
+    to:   [35.83, 52.33],  // Absard, Iran
+    color: '#4db4ff',
+    type: 'assassination',
+    via: null,
+    eventDot: [35.83, 52.33],
+    proxyLabel: { latlng:[35.83, 52.33], text:'ABSARD — IRAN' },
+  },
+  {
+    year: 'APR 2024',
+    title: 'Iran tấn công trực tiếp Israel lần đầu',
+    short: 'Operation True Promise',
+    desc: 'Iran phóng 300+ drone & tên lửa trực tiếp vào Israel. 99% bị đánh chặn. Lần đầu Iran tấn công từ lãnh thổ của mình.',
+    from: [35.69, 51.39],  // Tehran
+    to:   [31.77, 35.21],  // Jerusalem
+    color: '#ff4d8f',
+    type: 'missile',
+    via: [32.5, 40.0],
+    eventDot: [31.77, 35.21],
+  },
+  {
+    year: 'OCT 2024',
+    title: 'Israel phản công vào Iran',
+    short: 'Israel tấn công Iran',
+    desc: 'Israel lần đầu tấn công trực tiếp lãnh thổ Iran — không kích các căn cứ phòng không gần Isfahan & Tehran.',
+    from: [32.08, 34.78],  // Tel Aviv
+    to:   [32.65, 51.67],  // Isfahan
+    color: '#4db4ff',
+    type: 'airstrike',
+    via: [32.0, 40.0],
+    eventDot: [32.65, 51.67],
+    proxyLabel: { latlng:[32.65, 51.67], text:'ISFAHAN — HỆ THỐNG S-300' },
+  },
+];
+
+// ═══════════════════════════════════════════
+//  MAP INIT
+// ═══════════════════════════════════════════
+const map = L.map('map', {
+  center: [32.5, 43],
+  zoom: 5,
+  zoomControl: true,
+  attributionControl: false,
+});
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(map);
+
+// Country polygons
+const iranCoords = [
+  [37.4,44.0],[38.4,44.5],[39.2,44.1],[39.6,45.5],[39.2,46.5],
+  [39.8,47.8],[38.8,48.9],[37.5,49.0],[37.0,50.1],[37.6,51.0],
+  [37.9,52.5],[37.2,53.9],[36.8,54.7],[37.5,55.6],[37.9,56.2],
+  [37.4,57.3],[36.6,58.0],[35.8,60.0],[35.1,61.0],[35.3,61.7],
+  [33.8,60.8],[31.0,61.6],[29.0,60.9],[26.5,61.5],[25.0,62.2],
+  [25.0,59.5],[24.4,58.5],[25.3,57.3],[26.6,57.8],[27.1,56.3],
+  [26.8,55.5],[27.5,55.2],[27.5,54.5],[28.0,53.9],[28.1,52.9],
+  [27.2,52.7],[26.9,52.1],[27.4,51.6],[27.5,50.8],[28.2,50.3],
+  [29.1,50.1],[29.9,48.8],[30.6,48.6],[31.5,47.8],[32.0,47.8],
+  [32.5,48.2],[33.0,47.5],[33.5,46.0],[34.5,45.4],[35.0,45.7],
+  [36.3,45.2],[36.5,44.3],[37.1,44.2],[37.4,44.0]
+];
+const israelCoords = [
+  [33.0,35.1],[32.6,35.7],[32.5,35.6],[32.1,35.5],[31.8,35.5],
+  [31.5,35.5],[31.2,35.2],[31.0,35.2],[30.5,35.0],[29.5,34.9],
+  [29.0,34.8],[29.5,34.6],[30.0,34.5],[30.5,34.5],[31.0,34.3],
+  [31.5,34.5],[32.0,34.8],[32.4,34.9],[32.9,35.0],[33.1,35.1],[33.0,35.1]
+];
+
+L.polygon(iranCoords,   { color:'#ff4d8f', weight:2, opacity:0.8, fillColor:'#ff4d8f', fillOpacity:0.18 }).addTo(map);
+L.polygon(israelCoords, { color:'#ff4d8f', weight:2, opacity:0.8, fillColor:'#ff4d8f', fillOpacity:0.22 }).addTo(map);
+
+// Fixed labels
+function makeCountryLabel(latlng, text) {
+  return L.marker(latlng, {
+    icon: L.divIcon({ className:'country-label', html:`<div>${text}</div>`, iconAnchor:[-8,8] }),
+    interactive: false
+  }).addTo(map);
+}
+makeCountryLabel([33.0, 53.5], 'IRAN');
+makeCountryLabel([31.5, 34.75], 'ISRAEL');
+
+// Capitals pulse
+function makePulseDot(latlng, blue) {
+  return L.marker(latlng, {
+    icon: L.divIcon({ className:'', html:`<div class="pulse-dot${blue?' blue':''}"></div>`, iconSize:[14,14], iconAnchor:[7,7] })
+  }).addTo(map);
+}
+makePulseDot([35.69, 51.39], false);   // Tehran
+makePulseDot([31.77, 35.21], true);    // Jerusalem
+
+// ═══════════════════════════════════════════
+//  SVG OVERLAY
+// ═══════════════════════════════════════════
+const svgNS = 'http://www.w3.org/2000/svg';
+const svg = document.createElementNS(svgNS, 'svg');
+svg.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:500;overflow:visible;';
+document.body.appendChild(svg);
+
+const defs = document.createElementNS(svgNS, 'defs');
+defs.innerHTML = `
+  <filter id="glow-pink" x="-60%" y="-60%" width="220%" height="220%">
+    <feGaussianBlur stdDeviation="4" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <filter id="glow-blue" x="-60%" y="-60%" width="220%" height="220%">
+    <feGaussianBlur stdDeviation="4" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <filter id="glow-orange" x="-60%" y="-60%" width="220%" height="220%">
+    <feGaussianBlur stdDeviation="4" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <filter id="glow-bg" x="-100%" y="-100%" width="300%" height="300%">
+    <feGaussianBlur stdDeviation="10" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <marker id="arrow-pink" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+    <path d="M0,0 L6,3 L0,6 Z" fill="#ff4d8f"/>
+  </marker>
+  <marker id="arrow-blue" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+    <path d="M0,0 L6,3 L0,6 Z" fill="#4db4ff"/>
+  </marker>
+  <marker id="arrow-orange" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+    <path d="M0,0 L6,3 L0,6 Z" fill="#ffaa44"/>
+  </marker>
+`;
+svg.appendChild(defs);
+
+// style injection
+const kfStyle = document.createElement('style');
+kfStyle.textContent = `
+  @keyframes dash-flow   { to { stroke-dashoffset: -22; } }
+  @keyframes dash-flow-r { to { stroke-dashoffset:  22; } }
+  @keyframes fadeInLine  { from{opacity:0} to{opacity:1} }
+  @keyframes popIn       { from{opacity:0;transform:translate(-50%,-90%) scale(0.85)} to{opacity:1;transform:translate(-50%,-110%) scale(1)} }
+`;
+document.head.appendChild(kfStyle);
+
+// ── Draw a curved animated dash line ──
+function getArrowId(color) {
+  if (color === '#4db4ff') return 'arrow-blue';
+  if (color === '#ffaa44') return 'arrow-orange';
+  return 'arrow-pink';
+}
+function getGlowId(color) {
+  if (color === '#4db4ff') return 'url(#glow-blue)';
+  if (color === '#ffaa44') return 'url(#glow-orange)';
+  return 'url(#glow-pink)';
+}
+
+function drawCurvedLine(p1, p2, color, reverse) {
+  const mx = (p1.x + p2.x) / 2;
+  const my = (p1.y + p2.y) / 2;
+  const dx = p2.x - p1.x, dy = p2.y - p1.y;
+  const len = Math.sqrt(dx*dx+dy*dy);
+  const curve = len * 0.18;
+  const cx = mx - dy/len * curve;
+  const cy = my + dx/len * curve;
+
+  // glow bg
+  const bg = document.createElementNS(svgNS, 'path');
+  bg.setAttribute('d', `M${p1.x},${p1.y} Q${cx},${cy} ${p2.x},${p2.y}`);
+  bg.setAttribute('stroke', color);
+  bg.setAttribute('stroke-width', '10');
+  bg.setAttribute('fill', 'none');
+  bg.setAttribute('opacity', '0.15');
+  bg.setAttribute('filter', 'url(#glow-bg)');
+  svg.appendChild(bg);
+
+  // main dash
+  const path = document.createElementNS(svgNS, 'path');
+  path.setAttribute('d', `M${p1.x},${p1.y} Q${cx},${cy} ${p2.x},${p2.y}`);
+  path.setAttribute('stroke', color);
+  path.setAttribute('stroke-width', '2.2');
+  path.setAttribute('fill', 'none');
+  path.setAttribute('stroke-dasharray', '10 8');
+  path.setAttribute('marker-end', `url(#${getArrowId(color)})`);
+  path.setAttribute('filter', getGlowId(color));
+  path.style.animation = `${reverse ? 'dash-flow-r' : 'dash-flow'} 0.65s linear infinite, fadeInLine 0.5s ease forwards`;
+  path.style.opacity = '0';
+  svg.appendChild(path);
+
+  return { bg, path };
+}
+
+// ── Event dot on map ──
+function makeEventDot(latlng, color) {
+  const dot = document.createElementNS(svgNS, 'circle');
+  dot.setAttribute('r', '7');
+  dot.setAttribute('fill', color);
+  dot.setAttribute('opacity', '0.9');
+  dot.setAttribute('filter', getGlowId(color));
+  svg.appendChild(dot);
+  function updateDot() {
+    const p = map.latLngToContainerPoint(latlng);
+    dot.setAttribute('cx', p.x);
+    dot.setAttribute('cy', p.y);
+  }
+  updateDot();
+  map.on('move zoom moveend zoomend', updateDot);
+  return dot;
+}
+
+// ── Proxy label ──
+function makeProxyLabel(latlng, text) {
+  return L.marker(latlng, {
+    icon: L.divIcon({ className:'proxy-label', html:`<div>${text}</div>`, iconAnchor:[-10, 10] }),
+    interactive: false
+  }).addTo(map);
+}
+
+// ─────────────────────────────────
+//  STATE
+// ─────────────────────────────────
+let currentStep = -1;
+let activeLines = [];
+let activePopup = null;
+let proxyMarkers = [];
+let eventDots = [];
+let autoTimer = null;
+
+// Build timeline sidebar
+const timelineEl = document.getElementById('timeline');
+EVENTS.forEach((ev, i) => {
+  const item = document.createElement('div');
+  item.className = 't-item';
+  item.id = `t-item-${i}`;
+  item.innerHTML = `
+    <div class="t-dot" id="t-dot-${i}"></div>
+    <div>
+      <div class="t-year">${ev.year}</div>
+      <div class="t-text">${ev.short}</div>
+    </div>
+  `;
+  item.onclick = () => { stopAuto(); goTo(i); };
+  timelineEl.appendChild(item);
+});
+
+function clearCurrentStep() {
+  activeLines.forEach(({ bg, path }) => {
+    if (bg)   svg.removeChild(bg);
+    if (path) svg.removeChild(path);
+  });
+  activeLines = [];
+  proxyMarkers.forEach(m => map.removeLayer(m));
+  proxyMarkers = [];
+  eventDots.forEach(d => { try { svg.removeChild(d); } catch(e){} });
+  eventDots = [];
+  if (activePopup) { document.body.removeChild(activePopup); activePopup = null; }
+}
+
+function updateSvgLines() {
+  if (currentStep < 0) return;
+  const ev = EVENTS[currentStep];
+  // re-draw
+  activeLines.forEach(({ bg, path }) => {
+    const p1 = map.latLngToContainerPoint(ev.from);
+    const p2 = map.latLngToContainerPoint(ev.to);
+    const mx = (p1.x+p2.x)/2, my = (p1.y+p2.y)/2;
+    const dx = p2.x-p1.x, dy = p2.y-p1.y;
+    const len = Math.sqrt(dx*dx+dy*dy)||1;
+    const curve = len*0.18;
+    const cx = mx - dy/len*curve, cy = my + dx/len*curve;
+    const d = `M${p1.x},${p1.y} Q${cx},${cy} ${p2.x},${p2.y}`;
+    bg.setAttribute('d', d);
+    path.setAttribute('d', d);
+  });
+  // update event dots
+  eventDots.forEach((dot, idx) => {
+    const pos = idx === 0 ? ev.eventDot : ev.from;
+    const p = map.latLngToContainerPoint(pos);
+    dot.setAttribute('cx', p.x); dot.setAttribute('cy', p.y);
+  });
+  // popup
+  if (activePopup && ev.eventDot) {
+    const p = map.latLngToContainerPoint(ev.eventDot);
+    activePopup.style.left = p.x + 'px';
+    activePopup.style.top  = p.y + 'px';
+  }
+}
+
+function goTo(stepIdx) {
+  clearCurrentStep();
+  currentStep = stepIdx;
+
+  // sidebar
+  document.querySelectorAll('.t-item').forEach((el, i) => {
+    el.classList.toggle('active', i === stepIdx);
+  });
+
+  const ev = EVENTS[stepIdx];
+
+  // pan map smoothly to midpoint
+  const midLat = (ev.from[0] + ev.to[0]) / 2;
+  const midLng = (ev.from[1] + ev.to[1]) / 2;
+  map.flyTo([midLat, midLng], 5, { duration: 1.0, easeLinearity: 0.5 });
+
+  setTimeout(() => {
+    const p1 = map.latLngToContainerPoint(ev.from);
+    const p2 = map.latLngToContainerPoint(ev.to);
+    const lines = drawCurvedLine(p1, p2, ev.color, ev.type === 'airstrike' || ev.type === 'cyber');
+    activeLines.push(lines);
+    map.on('move zoom moveend zoomend', updateSvgLines);
+
+    // event dot
+    const dot = makeEventDot(ev.eventDot, ev.color);
+    eventDots.push(dot);
+
+    // proxy label
+    if (ev.proxyLabel) {
+      proxyMarkers.push(makeProxyLabel(ev.proxyLabel.latlng, ev.proxyLabel.text));
+    }
+
+    // popup
+    const popup = document.createElement('div');
+    popup.className = 'event-popup';
+    popup.innerHTML = `
+      <div class="ep-year">${ev.year}</div>
+      <div class="ep-title">${ev.title}</div>
+      <div class="ep-desc">${ev.desc}</div>
+    `;
+    const p = map.latLngToContainerPoint(ev.eventDot);
+    popup.style.left = p.x + 'px';
+    popup.style.top  = p.y + 'px';
+    document.body.appendChild(popup);
+    activePopup = popup;
+  }, 900);
+
+  // progress
+  document.getElementById('progress-fill').style.width = `${((stepIdx+1)/EVENTS.length)*100}%`;
+  document.getElementById('step-counter').textContent = `${stepIdx+1} / ${EVENTS.length}`;
+  document.getElementById('btn-prev').disabled = stepIdx <= 0;
+  document.getElementById('btn-next').disabled = stepIdx >= EVENTS.length - 1;
+
+  // update header
+  document.querySelector('#header h1').textContent = `⚔️ ${ev.year} — ${ev.short.toUpperCase()}`;
+}
+
+// nav
+document.getElementById('btn-next').onclick = () => { stopAuto(); if (currentStep < EVENTS.length-1) goTo(currentStep+1); };
+document.getElementById('btn-prev').onclick = () => { stopAuto(); if (currentStep > 0) goTo(currentStep-1); };
+
+// autoplay
+function startAuto() {
+  autoTimer = setInterval(() => {
+    if (currentStep >= EVENTS.length - 1) { stopAuto(); return; }
+    goTo(currentStep + 1);
+  }, 5000);
+}
+function stopAuto() {
+  clearInterval(autoTimer); autoTimer = null;
+  document.getElementById('autoplay-dot').style.animation = 'none';
+  document.getElementById('autoplay-dot').style.opacity = '0.2';
+}
+
+// Start
+setTimeout(() => { goTo(0); startAuto(); }, 600);
+</script>
+</body>
+</html>
