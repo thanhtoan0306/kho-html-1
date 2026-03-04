@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Career Journey — Smooth Timeline</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@300;400;600&display=swap');
+
+body { margin: 0; background: #050508; font-family: 'Barlow', sans-serif; overflow: hidden; }
+#map { width: 100vw; height: 100vh; background: #050508; }
+
+/* Làm tối bản đồ */
+.leaflet-tile { filter: brightness(0.5) contrast(1.2) saturate(0.5) invert(0.9) hue-rotate(180deg); }
+
+/* Header & UI */
+#header {
+  position: fixed; top: 0; width: 100%; z-index: 1000; text-align: center;
+  padding: 20px 0; background: linear-gradient(to bottom, rgba(5,5,8,0.9), transparent);
+  pointer-events: none;
+}
+#header h1 { font-family: 'Bebas Neue', sans-serif; color: #fff; letter-spacing: 5px; margin: 0; font-size: 2.5rem; text-shadow: 0 0 15px #00f2ff; }
+
+/* Timeline Sidebar */
+#timeline {
+  position: fixed; right: 20px; top: 50%; transform: translateY(-50%); z-index: 1000;
+  border-right: 1px solid rgba(0,242,255,0.2); padding-right: 15px;
+}
+.t-item {
+  cursor: pointer; opacity: 0.3; transition: 0.5s; margin: 15px 0; text-align: right;
+}
+.t-item.active { opacity: 1; transform: scale(1.1); }
+.t-year { font-family: 'Bebas Neue', sans-serif; color: #00f2ff; font-size: 1.2rem; }
+.t-text { color: #fff; font-size: 0.8rem; text-transform: uppercase; }
+
+/* Popup mượt mà */
+.custom-popup {
+  position: fixed; z-index: 999; transform: translate(-50%, -120%);
+  background: rgba(10,10,20,0.95); border: 1px solid #00f2ff;
+  padding: 15px; border-radius: 4px; color: #fff; width: 220px;
+  text-align: center; backdrop-filter: blur(10px);
+  animation: fadeIn 0.8s ease-out;
+}
+@keyframes fadeIn { from { opacity: 0; transform: translate(-50%, -100%); } to { opacity: 1; transform: translate(-50%, -120%); } }
+
+/* Điều khiển */
+#nav-btns { position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%); z-index: 1000; display: flex; gap: 20px; }
+.nav-btn {
+  background: none; border: 1px solid #00f2ff; color: #00f2ff;
+  padding: 10px 25px; cursor: pointer; font-family: 'Bebas Neue'; letter-spacing: 2px;
+  transition: 0.3s;
+}
+.nav-btn:hover { background: #00f2ff; color: #000; box-shadow: 0 0 15px #00f2ff; }
+
+#progress-bar { position: fixed; bottom: 0; height: 4px; background: #00f2ff; transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1); z-index: 1001; }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <h1>MY TECH JOURNEY</h1>
+</div>
+
+<div id="map"></div>
+<div id="timeline"></div>
+<div id="progress-bar" style="width: 0%"></div>
+
+<div id="nav-btns">
+  <button class="nav-btn" onclick="prev()">PREV</button>
+  <button class="nav-btn" id="playBtn" onclick="togglePlay()">PLAY</button>
+  <button class="nav-btn" onclick="next()">NEXT</button>
+</div>
+
+<script>
+const EVENTS = [
+  { year: 'ROOT', title: 'Nha Trang', desc: 'Nơi bắt đầu hành trình.', pos: [12.2388, 109.1967] },
+  { year: '2016', title: 'SPKT HCM', desc: 'Đại học Sư phạm Kỹ thuật TP.HCM.', pos: [10.8507, 106.7719] },
+  { year: '2021', title: 'OSSTECH', desc: 'Kỹ sư phần cứng chuyên nghiệp.', pos: [10.795, 106.692] },
+  { year: '2022', title: 'Nexle Software', desc: 'Chuyển mình sang C++, HTML, JS.', pos: [10.801, 106.650] },
+  { year: '2024', title: 'Nexle Đà Nẵng', desc: 'Mở rộng sự nghiệp tại miền Trung.', pos: [16.0544, 108.2022] },
+  { year: '2025', title: 'BPO HCM', desc: 'Chinh phục thử thách mới tại trung tâm kinh tế.', pos: [10.7769, 106.7009] }
+];
+
+const map = L.map('map', { 
+  center: [14.0, 108.0], 
+  zoom: 6, 
+  zoomControl: false, 
+  attributionControl: false 
+});
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+// Vẽ các điểm (dot) cố định trên bản đồ
+EVENTS.forEach(ev => {
+  L.circleMarker(ev.pos, {
+    radius: 6,
+    fillColor: "#00f2ff",
+    color: "#fff",
+    weight: 2,
+    opacity: 1,
+    fillOpacity: 0.8
+  }).addTo(map);
+});
+
+const svgNS = 'http://www.w3.org/2000/svg';
+const svg = document.createElementNS(svgNS, 'svg');
+svg.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:500;';
+document.body.appendChild(svg);
+
+let currentIdx = -1;
+let activePopup = null;
+let isPlaying = false;
+let playTimer;
+
+// Sidebar Init
+const timeline = document.getElementById('timeline');
+EVENTS.forEach((ev, i) => {
+  const div = document.createElement('div');
+  div.className = 't-item';
+  div.id = `step-${i}`;
+  div.innerHTML = `<div class="t-year">${ev.year}</div><div class="t-text">${ev.title}</div>`;
+  div.onclick = () => { stopAuto(); goTo(i); };
+  timeline.appendChild(div);
+});
+
+function goTo(idx) {
+  if (idx < 0 || idx >= EVENTS.length || idx === currentIdx) return;
+  
+  currentIdx = idx;
+  const ev = EVENTS[idx];
+
+  // Cập nhật UI
+  document.querySelectorAll('.t-item').forEach((el, i) => el.classList.toggle('active', i === idx));
+  document.getElementById('progress-bar').style.width = `${((idx + 1) / EVENTS.length) * 100}%`;
+
+  // Xóa hiệu ứng cũ
+  if (activePopup) { activePopup.remove(); activePopup = null; }
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+  // Di chuyển bản đồ chậm và mượt (Cinematic move)
+  map.flyTo(ev.pos, 14, {
+    duration: 3, // Tăng thời gian để mượt hơn
+    easeLinearity: 0.1
+  });
+
+  // Đợi di chuyển xong mới hiện Popup và Line
+  map.once('moveend', () => {
+    // Vẽ đường nối từ điểm cũ
+    if (idx > 0) {
+      const p1 = map.latLngToContainerPoint(EVENTS[idx-1].pos);
+      const p2 = map.latLngToContainerPoint(ev.pos);
+      const line = document.createElementNS(svgNS, 'line');
+      line.setAttribute('x1', p1.x); line.setAttribute('y1', p1.y);
+      line.setAttribute('x2', p2.x); line.setAttribute('y2', p2.y);
+      line.setAttribute('stroke', '#00f2ff');
+      line.setAttribute('stroke-width', '2');
+      line.setAttribute('stroke-dasharray', '8,4');
+      line.style.opacity = '0.5';
+      svg.appendChild(line);
+    }
+
+    // Hiển thị Popup
+    const p = map.latLngToContainerPoint(ev.pos);
+    activePopup = document.createElement('div');
+    activePopup.className = 'custom-popup';
+    activePopup.innerHTML = `<b style="color:#00f2ff">${ev.year}</b><br><div style="margin-top:5px; font-weight:600">${ev.title}</div><p style="font-size:0.75rem; opacity:0.8">${ev.desc}</p>`;
+    activePopup.style.left = p.x + 'px';
+    activePopup.style.top = p.y + 'px';
+    document.body.appendChild(activePopup);
+  });
+}
+
+function next() { if (currentIdx < EVENTS.length - 1) goTo(currentIdx + 1); }
+function prev() { if (currentIdx > 0) goTo(currentIdx - 1); }
+
+function togglePlay() {
+  isPlaying = !isPlaying;
+  const btn = document.getElementById('playBtn');
+  btn.textContent = isPlaying ? 'PAUSE' : 'PLAY';
+  if (isPlaying) {
+    if (currentIdx === EVENTS.length - 1) currentIdx = -1;
+    next();
+    playTimer = setInterval(() => {
+      if (currentIdx >= EVENTS.length - 1) stopAuto();
+      else next();
+    }, 6000); // 3s di chuyển + 3s dừng để xem
+  } else {
+    clearInterval(playTimer);
+  }
+}
+
+function stopAuto() {
+  isPlaying = false;
+  clearInterval(playTimer);
+  document.getElementById('playBtn').textContent = 'PLAY';
+}
+
+// Bắt đầu
+window.onload = () => goTo(0);
+</script>
+</body>
+</html>
