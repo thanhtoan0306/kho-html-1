@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local Video AI Recognition</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+
+    <style>
+        :root { --primary: #FF6F00; --bg: #f4f7f6; }
+        body { margin: 0; font-family: 'Segoe UI', sans-serif; background: var(--bg); color: #333; text-align: center; }
+        
+        .header { padding: 30px; background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        h1 { color: var(--primary); margin: 0; font-style: italic; letter-spacing: 1px; }
+
+        .upload-section { margin: 25px 0; }
+        #fileInput { display: none; }
+        .custom-upload {
+            padding: 12px 25px; background: var(--primary); color: white;
+            border-radius: 30px; cursor: pointer; display: inline-block;
+            font-weight: 600; transition: 0.3s;
+        }
+        .custom-upload:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255,111,0,0.4); }
+
+        .video-container {
+            position: relative; width: 90%; max-width: 1000px;
+            margin: 0 auto; border-radius: 15px; overflow: hidden;
+            background: #000; line-height: 0; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        
+        #videoSource { width: 100%; height: auto; }
+        #canvasOverlay {
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%; pointer-events: none;
+        }
+
+        #status { margin: 15px; font-weight: 500; color: #666; font-size: 1.1rem; }
+        .footer-note { font-size: 0.9rem; color: #888; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Hệ Thống Nhận Diện Vật Thể (Local Video)</h1>
+    </div>
+
+    <div class="upload-section">
+        <label for="fileInput" class="custom-upload">📤 Tải video từ máy tính</label>
+        <input type="file" id="fileInput" accept="video/*">
+    </div>
+
+    <div id="status">⏳ Đang khởi tạo mô hình AI...</div>
+
+    <div class="video-container">
+        <video id="videoSource" playsinline muted loop controls></video>
+        <canvas id="canvasOverlay"></canvas>
+    </div>
+
+    <p class="footer-note">Cấu trúc: TensorFlow.js + COCO-SSD | Xử lý trực tiếp trên GPU/WebGL</p>
+
+    <script>
+        const video = document.getElementById('videoSource');
+        const canvas = document.getElementById('canvasOverlay');
+        const ctx = canvas.getContext('2d');
+        const fileInput = document.getElementById('fileInput');
+        const status = document.getElementById('status');
+
+        let model = null;
+        let isVideoReady = false;
+
+        // 1. Tải Model COCO-SSD (Nhận diện vật thể)
+        cocoSsd.load().then(loadedModel => {
+            model = loadedModel;
+            status.innerText = "✅ AI đã sẵn sàng. Hãy chọn một video để phân tích.";
+        });
+
+        // 2. Xử lý khi người dùng chọn file
+        fileInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const url = URL.createObjectURL(file);
+            video.src = url;
+            status.innerText = "🚀 Đang tải video...";
+            
+            // Reset canvas khi đổi video
+            isVideoReady = false;
+        };
+
+        // 3. Khi video đã sẵn sàng dữ liệu
+        video.onloadeddata = () => {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            isVideoReady = true;
+            status.innerText = "🔎 Đang nhận diện vật thể theo thời gian thực...";
+            predictFrame();
+        };
+
+        // 4. Vòng lặp nhận diện (Core Logic)
+        async function predictFrame() {
+            if (!isVideoReady || !model || video.paused || video.ended) {
+                // Nếu dừng video, vẫn cho phép loop nhưng chờ đợi
+                if (!video.paused) window.requestAnimationFrame(predictFrame);
+                return;
+            }
+
+            // Thực hiện nhận diện
+            const predictions = await model.detect(video);
+
+            // Xóa canvas để vẽ lớp mới (Layering)
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            predictions.forEach(pred => {
+                if (pred.score > 0.5) { // Chỉ lấy độ tin cậy trên 50%
+                    const [x, y, width, height] = pred.bbox;
+
+                    // Vẽ khung bao (Bounding Box)
+                    ctx.strokeStyle = "#00FF00";
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(x, y, width, height);
+
+                    // Vẽ nhãn (Label)
+                    ctx.fillStyle = "rgba(255, 111, 0, 0.9)";
+                    const labelText = `${pred.class.toUpperCase()} ${Math.round(pred.score * 100)}%`;
+                    const textWidth = ctx.measureText(labelText).width;
+                    
+                    ctx.fillRect(x, y > 30 ? y - 35 : y, textWidth + 40, 30);
+                    
+                    ctx.fillStyle = "white";
+                    ctx.font = "bold 18px Arial";
+                    ctx.fillText(labelText, x + 10, y > 30 ? y - 13 : y + 20);
+                }
+            });
+
+            // Đệ quy bằng RequestAnimationFrame để tối ưu CPU
+            window.requestAnimationFrame(predictFrame);
+        }
+
+        // Tự động chạy lại khi nhấn Play sau khi Pause
+        video.onplay = () => {
+            if (isVideoReady) predictFrame();
+        };
+    </script>
+</body>
+</html>
